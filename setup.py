@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.5' 
+VERSION = '0.0.6' 
 DESCRIPTION = 'Machine Learning Library'
 
 # Setting up
@@ -14,7 +14,7 @@ setup(
         long_description=DESCRIPTION,
         long_description_content_type="text/markdown",
         packages=find_packages(include=['snakeML']),
-        install_requires=["numpy","matplotlib"], # add any additional packages that 
+        install_requires=["numpy","matplotlib","sklearn"], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
         license='MIT',
         keywords=['python', 'ML'],

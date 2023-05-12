@@ -1,20 +1,31 @@
 from snakeML.loads import loadData
 from snakeML.numpy_transformations import mcol
 from snakeML.visualization import scatter_attributeVSattribute
-from snakeML.preprocessing import oneHotEncoding
 import numpy
 import scipy
 
-def PCA(data, m):
-    mu=data.mean(1)
-    DC=data-mcol(mu)
-    C=numpy.dot(DC,DC.T)/data.shape[1]
+def PCA(D, m, flipped=False):
+    mu=D.mean(1)
+    DC=D-mcol(mu)
+    C=numpy.dot(DC,DC.T)/D.shape[1]
     s, U = numpy.linalg.eigh(C)
-    P = U[:, ::-1][:, 0:m]
-    DP=numpy.dot(P.T,data)
+    if flipped:
+        P = -U[:, ::-1][:, 0:m]
+    else:
+        P = U[:, ::-1][:, 0:m]
+    DP=numpy.dot(P.T,D)
     return DP
 
-def LDA(m, D, L,L_names):
+def scatter_PCA(D,L,L_names,m,flipped=False):
+    #D,L=loadData(filename, row_attributes=True, labels=True, numpyDataType=numpy.float32)
+    #L, L_names=oneHotEncoding(L, return_dictionary=True)
+    DP=PCA(D,m, flipped)
+    features=[]
+    for i in range(m):
+        features.append("Axis "+str(i))
+    scatter_attributeVSattribute(DP,L,features,L_names,row_attributes=True,is_label_dict=True)
+
+def LDA(D, L,L_names, m,flipped=False):
     mu=D.mean(1)
     SW=numpy.zeros(D.shape[0])
     SB=numpy.zeros(D.shape[0])
@@ -38,18 +49,10 @@ def LDA(m, D, L,L_names):
     DP=numpy.dot(W.T,D)
     return DP
 
-def scatter_LDA(m, D, L, L_names):
-    DP=LDA(m,D,L, L_names)
+def scatter_LDA(D, L, L_names, m,flipped=False):
+    DP=LDA(m,D,L, L_names, flipped)
     features=[]
     for i in range(m):
         features.append("Axis "+str(i))
     scatter_attributeVSattribute(DP,L,features,L_names,row_attributes=True,is_label_dict=True)
 
-def scatter_PCA(filename, m):
-    D,L=loadData(filename, row_attributes=True, labels=True, numpyDataType=numpy.float32)
-    L, L_names=oneHotEncoding(L, return_dictionary=True)
-    DP=PCA(D,m)
-    features=[]
-    for i in range(m):
-        features.append("Axis "+str(i))
-    scatter_attributeVSattribute(DP,L,features,L_names,row_attributes=True,is_label_dict=True)
