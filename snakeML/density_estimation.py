@@ -1,70 +1,83 @@
 import numpy
-import matplotlib.pyplot as plt
-import math
-from snakeML.numpy_transformations import mcol, mrow, mean_cov
+import scipy
+from snakeML.numpy_transformations import mrow
 
-def logpdf_GAU_ND_unoptimized(x, mu, C):
-    C_inv=numpy.linalg.inv(C)
-    det = numpy.linalg.slogdet(C)[1]
-    M=x.shape[0]
-    log_pi=math.log(2*math.pi)
-    ab=(-M*log_pi-det)/2
-    result=[]
-    for i in range(x.shape[1]):
-        x_mu=numpy.subtract(mcol(x[:,i]),mu)
-        c_p=numpy.dot(x_mu.T,C_inv)
-        c_d=numpy.dot(c_p,x_mu)
-        c=-c_d/2
-        y=numpy.add(ab,c)[0][0]
-        result.append(y)
-    return numpy.array(result)
 
-def logpdf_GAU_ND(x, mu=False, C=False, exp=False):
-    if (not mu.any() and not C.any()):
-        mu, C= mean_cov(x)
-    C_inv=numpy.linalg.inv(C)
-    det = numpy.linalg.slogdet(C)[1]
-    M=x.shape[0]
-    log_pi=math.log(2*math.pi)
-    #ab=(-M*log_pi-det)/2
-    x_mu=numpy.subtract(x,mu)
-    r1=numpy.dot(x_mu.T,C_inv)
-    r2=numpy.diagonal(numpy.dot(r1,x_mu))
-    result=(-M*log_pi-det-r2)/2
-    if exp:
-        return numpy.exp(result)
+def SJoint(ll, pi=None, logarithmic=True):
+    """
+    Joint density estimation (from loglikelihood)
+
+    Parameters
+    ----------
+    ll: log-likelihood matrix
+    """
+    ll = numpy.array(ll)
+    classes = ll.shape[0]
+    if pi is None:
+        pi = numpy.full((classes, 1), 1 / classes)
+    pi = numpy.array(pi)
+    if logarithmic:
+        SJoint = ll + numpy.log(pi.reshape((-1, 1)))
     else:
-        return result
+        SJoint = ll * (pi)
+    return SJoint
 
-def logpdf_GAU_ND_error(Solution, Result):
-    print("Error: ",numpy.abs(Solution - Result).max())
- 
-def logpdf_GAU_ND_visualization(Data, result):
-    plt.figure()
-    plt.plot(Data.ravel(), numpy.exp(result))
-    plt.show()
 
-def loglikelihood_visualization(Data, XPlot, Result):
-    plt.figure()
-    plt.hist(Data.ravel(), bins=50, density=True)
-    plt.plot(XPlot.ravel(), numpy.exp(Result))
-    plt.show()
-
-def loglikelihood(x, m_ML=False, C_ML=False, return_log_density=False, visualize=numpy.array([])):
-    if (not m_ML and not C_ML):
-        """ mu=mcol(numpy.mean(x,axis=1))
-        c=numpy.cov(x)
-        if c.size==1:
-            c=numpy.reshape(numpy.array(c),(c.size,-1)) """
-        gau=logpdf_GAU_ND(x)
-        if visualize.size>0:
-            loglikelihood_visualization(x, visualize, logpdf_GAU_ND(mrow(visualize),mu,c))
+def SPost(SJoint, SMarginal, logarithmic=True, exp=True):
+    """
+    Posterior probabilities (Joint density estimation / Marginal density estimation)
+    """
+    if logarithmic:
+        logSPost = SJoint - SMarginal
+        if exp:
+            return numpy.exp(logSPost)
+        else:
+            return logSPost
     else:
-        gau=logpdf_GAU_ND(x,m_ML,C_ML)
-        if visualize.size>0:
-            loglikelihood_visualization(x, visualize, logpdf_GAU_ND(mrow(visualize),m_ML,C_ML))
-    result=numpy.sum(gau)
-    if return_log_density:
-        return result, gau
+        return SJoint / SMarginal
+
+
+def SMarginal(SJoint, logarithmic=True):
+    """
+    Marginal density estimation (from Joint density estimation)
+    """
+    if logarithmic:
+        return mrow(scipy.special.logsumexp(SJoint, axis=0))
     else:
-        return result
+        return mrow(SJoint.sum(0))
+
+
+def SPost_from_ll(ll, pi, log=True, return_marginal=False):
+    """
+    Posterior probabilities from log-likelihood matrix
+    returns: posterior probabilities
+
+    Parameters
+    ----------
+    ll: log-likelihood matrix
+    pi: Prior probabilities [Pc1, Pc2, ...]
+    """
+    SJ = SJoint(ll, pi=pi, logarithmic=log)
+    Marginal = SMarginal(SJ, logarithmic=log)
+    Posterior = SPost(SJ, Marginal, logarithmic=log)
+    if return_marginal:
+        return Posterior, Marginal
+    else:
+        return Posterior
+
+
+def estimation(ll, log=True, pi=None):
+    """
+    Estimate class labels from log-likelihoods
+    returns: predictions
+
+    Parameters
+    ----------
+    ll: log-likelihood matrix
+    pi: Prior probabilities [Pc1, Pc2, ...]
+    """
+    SJ = SJoint(ll, pi=pi, logarithmic=log)
+    Marginal = SMarginal(SJ, logarithmic=log)
+    Posterior = SPost(SJ, Marginal, logarithmic=log)
+    pred = numpy.argmax(Posterior, axis=0)
+    return pred
