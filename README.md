@@ -3,6 +3,7 @@ Machine Learning Library for Python.
 
 ### Description
 This library is a collection of machine learning algorithms implemented in Python. The goal is to provide a simple interface for using these algorithms in your own projects.
+For examples, refer to github.com/manuelescobar-dev.
 
 ### Installation
 ```
